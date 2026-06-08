@@ -1,15 +1,22 @@
-// 2026 2분기 GWP 선물 대시보드 — Cloudflare Worker (API)
+// 선행기구개발그룹 GWP 대시보드 — Cloudflare Worker (API)
 // 정적 자산은 [assets] 바인딩이 먼저 서빙하고, /api/* 요청만 이 Worker가 처리한다.
+// GitHub Pages(github.io)에서 호출할 수 있도록 CORS를 허용한다.
 
 const MAX_NAME = 100;
 const MAX_TEXT = 500;
 const MAX_URL = 1000;
 
-/** JSON 응답 헬퍼 */
+const CORS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "access-control-allow-headers": "content-type",
+  "access-control-max-age": "86400",
+};
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", ...CORS },
   });
 }
 
@@ -17,224 +24,212 @@ function err(message, status = 400) {
   return json({ error: message }, status);
 }
 
-/** 16바이트 랜덤 salt를 hex 문자열로 */
 function newSalt() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** SHA-256(salt + ":" + password) → hex */
 async function hashPassword(salt, password) {
   const data = new TextEncoder().encode(`${salt}:${password}`);
   const digest = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** 상수 시간 비교(타이밍 공격 완화) */
 function timingSafeEqual(a, b) {
-  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) {
-    return false;
-  }
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
 
-/** 항목 비밀번호 검증 (관리자 비밀번호로 우회 가능) */
 async function verifyPassword(row, password, env) {
   if (typeof password !== "string" || password.length === 0) return false;
-  if (env.ADMIN_PASSWORD && timingSafeEqual(password, env.ADMIN_PASSWORD)) {
-    return true;
-  }
+  if (env.ADMIN_PASSWORD && timingSafeEqual(password, env.ADMIN_PASSWORD)) return true;
   const computed = await hashPassword(row.pw_salt, password);
   return timingSafeEqual(computed, row.pw_hash);
 }
 
-/** 입력 정규화 및 검증. 성공 시 {value}, 실패 시 {error} */
-function validateGiftInput(body, { partial = false } = {}) {
+// 공통 텍스트 필드 검증
+function checkText(val, { required, max, label }) {
+  const s = typeof val === "string" ? val.trim() : "";
+  if (required && !s) return { error: `${label}을(를) 입력해 주세요.` };
+  if (s.length > max) return { error: `${label}은(는) ${max}자 이하로 입력해 주세요.` };
+  return { value: s || null };
+}
+
+function checkUrl(val) {
+  const s = typeof val === "string" ? val.trim() : "";
+  if (!s) return { value: null };
+  if (s.length > MAX_URL) return { error: "링크가 너무 깁니다." };
+  if (!/^https?:\/\//i.test(s)) return { error: "링크는 http(s):// 로 시작해야 합니다." };
+  return { value: s };
+}
+
+function checkInt(val, { min, max, label, allowEmpty, empty }) {
+  if (allowEmpty && (val === undefined || val === null || val === "")) return { value: empty };
+  const n = Number(val);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < min || n > max) {
+    return { error: `${label}을(를) 올바르게 입력해 주세요.` };
+  }
+  return { value: n };
+}
+
+// ---------------- 선물(gifts) ----------------
+function validateGift(body, partial) {
   const out = {};
-
-  // name
-  if (!partial || body.name !== undefined) {
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    if (!name) return { error: "제품명을 입력해 주세요." };
-    if (name.length > MAX_NAME) return { error: `제품명은 ${MAX_NAME}자 이하로 입력해 주세요.` };
-    out.name = name;
-  }
-
-  // price
-  if (!partial || body.price !== undefined) {
-    const price = Number(body.price);
-    if (!Number.isFinite(price) || !Number.isInteger(price) || price < 0) {
-      return { error: "가격은 0 이상의 정수(원)로 입력해 주세요." };
-    }
-    if (price > 100000000) return { error: "가격이 너무 큽니다." };
-    out.price = price;
-  }
-
-  // quantity
-  if (!partial || body.quantity !== undefined) {
-    const quantity = body.quantity === undefined || body.quantity === "" ? 1 : Number(body.quantity);
-    if (!Number.isFinite(quantity) || !Number.isInteger(quantity) || quantity < 1) {
-      return { error: "수량은 1 이상의 정수로 입력해 주세요." };
-    }
-    if (quantity > 100000) return { error: "수량이 너무 큽니다." };
-    out.quantity = quantity;
-  }
-
-  // url (선택)
-  if (!partial || body.url !== undefined) {
-    const url = typeof body.url === "string" ? body.url.trim() : "";
-    if (url) {
-      if (url.length > MAX_URL) return { error: "링크가 너무 깁니다." };
-      if (!/^https?:\/\//i.test(url)) return { error: "링크는 http(s):// 로 시작해야 합니다." };
-      out.url = url;
-    } else {
-      out.url = null;
-    }
-  }
-
-  // registrant (선택)
-  if (!partial || body.registrant !== undefined) {
-    const registrant = typeof body.registrant === "string" ? body.registrant.trim() : "";
-    if (registrant.length > MAX_NAME) return { error: `등록자는 ${MAX_NAME}자 이하로 입력해 주세요.` };
-    out.registrant = registrant || null;
-  }
-
-  // note (선택)
-  if (!partial || body.note !== undefined) {
-    const note = typeof body.note === "string" ? body.note.trim() : "";
-    if (note.length > MAX_TEXT) return { error: `메모는 ${MAX_TEXT}자 이하로 입력해 주세요.` };
-    out.note = note || null;
-  }
-
+  const set = (key, res) => {
+    if (res.error) return res.error;
+    out[key] = res.value;
+    return null;
+  };
+  let e;
+  if (!partial || body.name !== undefined)
+    if ((e = set("name", checkText(body.name, { required: true, max: MAX_NAME, label: "제품명" })))) return { error: e };
+  if (!partial || body.price !== undefined)
+    if ((e = set("price", checkInt(body.price, { min: 0, max: 100000000, label: "가격" })))) return { error: e };
+  if (!partial || body.quantity !== undefined)
+    if ((e = set("quantity", checkInt(body.quantity, { min: 1, max: 100000, label: "수량", allowEmpty: true, empty: 1 })))) return { error: e };
+  if (!partial || body.url !== undefined)
+    if ((e = set("url", checkUrl(body.url)))) return { error: e };
+  if (!partial || body.registrant !== undefined)
+    if ((e = set("registrant", checkText(body.registrant, { required: false, max: MAX_NAME, label: "등록자" })))) return { error: e };
+  if (!partial || body.note !== undefined)
+    if ((e = set("note", checkText(body.note, { required: false, max: MAX_TEXT, label: "메모" })))) return { error: e };
   return { value: out };
 }
 
-/** DB row → 외부 응답용(민감정보 제거) */
-function publicGift(row) {
+function publicGift(r) {
   return {
-    id: row.id,
-    name: row.name,
-    url: row.url,
-    price: row.price,
-    quantity: row.quantity,
-    subtotal: row.price * row.quantity,
-    registrant: row.registrant,
-    note: row.note,
-    created_at: row.created_at,
+    id: r.id, name: r.name, url: r.url, price: r.price, quantity: r.quantity,
+    subtotal: r.price * r.quantity, registrant: r.registrant, note: r.note, created_at: r.created_at,
   };
+}
+
+// ---------------- 식당(restaurants) ----------------
+function validateRestaurant(body, partial) {
+  const out = {};
+  const set = (key, res) => { if (res.error) return res.error; out[key] = res.value; return null; };
+  let e;
+  if (!partial || body.part !== undefined)
+    if ((e = set("part", checkText(body.part, { required: true, max: MAX_NAME, label: "파트명" })))) return { error: e };
+  if (!partial || body.restaurant !== undefined)
+    if ((e = set("restaurant", checkText(body.restaurant, { required: true, max: MAX_NAME, label: "식당명" })))) return { error: e };
+  if (!partial || body.category !== undefined)
+    if ((e = set("category", checkText(body.category, { required: false, max: MAX_NAME, label: "메뉴/종류" })))) return { error: e };
+  if (!partial || body.headcount !== undefined)
+    if ((e = set("headcount", checkInt(body.headcount, { min: 0, max: 100000, label: "인원", allowEmpty: true, empty: null })))) return { error: e };
+  if (!partial || body.url !== undefined)
+    if ((e = set("url", checkUrl(body.url)))) return { error: e };
+  if (!partial || body.note !== undefined)
+    if ((e = set("note", checkText(body.note, { required: false, max: MAX_TEXT, label: "메모" })))) return { error: e };
+  return { value: out };
+}
+
+function publicRestaurant(r) {
+  return {
+    id: r.id, part: r.part, restaurant: r.restaurant, category: r.category,
+    headcount: r.headcount, url: r.url, note: r.note, created_at: r.created_at,
+  };
+}
+
+// 리소스별 설정
+const RESOURCES = {
+  gifts: {
+    table: "gifts",
+    cols: "id, name, url, price, quantity, registrant, note, created_at",
+    insertCols: ["name", "url", "price", "quantity", "registrant", "note"],
+    updatable: ["name", "url", "price", "quantity", "registrant", "note"],
+    validate: validateGift,
+    toPublic: publicGift,
+    order: "created_at DESC, id DESC",
+  },
+  restaurants: {
+    table: "restaurants",
+    cols: "id, part, restaurant, category, headcount, url, note, created_at",
+    insertCols: ["part", "restaurant", "category", "headcount", "url", "note"],
+    updatable: ["part", "restaurant", "category", "headcount", "url", "note"],
+    validate: validateRestaurant,
+    toPublic: publicRestaurant,
+    order: "part ASC, created_at ASC, id ASC",
+  },
+};
+
+async function listRows(env, cfg) {
+  const { results } = await env.DB.prepare(
+    `SELECT ${cfg.cols} FROM ${cfg.table} ORDER BY ${cfg.order}`
+  ).all();
+  return (results || []).map(cfg.toPublic);
 }
 
 async function getState(env) {
-  const { results } = await env.DB.prepare(
-    "SELECT id, name, url, price, quantity, registrant, note, created_at FROM gifts ORDER BY created_at DESC, id DESC"
-  ).all();
-
-  const gifts = (results || []).map(publicGift);
+  const [gifts, restaurants] = await Promise.all([
+    listRows(env, RESOURCES.gifts),
+    listRows(env, RESOURCES.restaurants),
+  ]);
   const total = Number(env.TOTAL_BUDGET) || 0;
   const headcount = Number(env.HEADCOUNT) || 0;
   const perPerson = Number(env.PER_PERSON) || 0;
-  const spent = gifts.reduce((sum, g) => sum + g.subtotal, 0);
-
+  const spent = gifts.reduce((s, g) => s + g.subtotal, 0);
   return {
-    budget: {
-      total,
-      headcount,
-      perPerson,
-      spent,
-      remaining: total - spent,
-      count: gifts.length,
-      overBudget: spent > total,
-    },
+    budget: { total, headcount, perPerson, spent, remaining: total - spent, count: gifts.length, overBudget: spent > total },
     gifts,
+    restaurants,
   };
 }
 
-async function createGift(req, env) {
+async function createRow(req, env, cfg) {
   const body = await req.json().catch(() => null);
   if (!body) return err("잘못된 요청 형식입니다.");
-
   const password = typeof body.password === "string" ? body.password : "";
   if (password.length < 1) return err("비밀번호를 설정해 주세요.");
   if (password.length > 200) return err("비밀번호가 너무 깁니다.");
 
-  const v = validateGiftInput(body, { partial: false });
+  const v = cfg.validate(body, false);
   if (v.error) return err(v.error);
-  const g = v.value;
 
   const salt = newSalt();
   const pw_hash = await hashPassword(salt, password);
+  const cols = [...cfg.insertCols, "pw_salt", "pw_hash"];
+  const placeholders = cols.map(() => "?").join(", ");
+  const values = [...cfg.insertCols.map((c) => v.value[c] ?? null), salt, pw_hash];
 
   const res = await env.DB.prepare(
-    `INSERT INTO gifts (name, url, price, quantity, registrant, note, pw_salt, pw_hash)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(g.name, g.url, g.price, g.quantity, g.registrant, g.note, salt, pw_hash)
-    .run();
+    `INSERT INTO ${cfg.table} (${cols.join(", ")}) VALUES (${placeholders})`
+  ).bind(...values).run();
 
-  const id = res.meta.last_row_id;
-  const row = await env.DB.prepare(
-    "SELECT id, name, url, price, quantity, registrant, note, created_at FROM gifts WHERE id = ?"
-  )
-    .bind(id)
-    .first();
-
-  return json({ gift: publicGift(row) }, 201);
+  const row = await env.DB.prepare(`SELECT ${cfg.cols} FROM ${cfg.table} WHERE id = ?`)
+    .bind(res.meta.last_row_id).first();
+  return json({ item: cfg.toPublic(row) }, 201);
 }
 
-async function updateGift(id, req, env) {
+async function updateRow(id, req, env, cfg) {
   const body = await req.json().catch(() => null);
   if (!body) return err("잘못된 요청 형식입니다.");
+  const row = await env.DB.prepare(`SELECT * FROM ${cfg.table} WHERE id = ?`).bind(id).first();
+  if (!row) return err("항목을 찾을 수 없습니다.", 404);
+  if (!(await verifyPassword(row, body.password, env))) return err("비밀번호가 일치하지 않습니다.", 401);
 
-  const row = await env.DB.prepare("SELECT * FROM gifts WHERE id = ?").bind(id).first();
-  if (!row) return err("해당 선물을 찾을 수 없습니다.", 404);
-
-  if (!(await verifyPassword(row, body.password, env))) {
-    return err("비밀번호가 일치하지 않습니다.", 401);
-  }
-
-  const v = validateGiftInput(body, { partial: true });
+  const v = cfg.validate(body, true);
   if (v.error) return err(v.error);
-  const g = v.value;
 
-  // 변경할 필드만 동적으로 구성
-  const fields = [];
-  const values = [];
-  for (const key of ["name", "url", "price", "quantity", "registrant", "note"]) {
-    if (g[key] !== undefined) {
-      fields.push(`${key} = ?`);
-      values.push(g[key]);
-    }
+  const fields = [], values = [];
+  for (const key of cfg.updatable) {
+    if (v.value[key] !== undefined) { fields.push(`${key} = ?`); values.push(v.value[key]); }
   }
-  if (fields.length === 0) return err("수정할 내용이 없습니다.");
-
+  if (!fields.length) return err("수정할 내용이 없습니다.");
   values.push(id);
-  await env.DB.prepare(`UPDATE gifts SET ${fields.join(", ")} WHERE id = ?`)
-    .bind(...values)
-    .run();
+  await env.DB.prepare(`UPDATE ${cfg.table} SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
 
-  const updated = await env.DB.prepare(
-    "SELECT id, name, url, price, quantity, registrant, note, created_at FROM gifts WHERE id = ?"
-  )
-    .bind(id)
-    .first();
-
-  return json({ gift: publicGift(updated) });
+  const updated = await env.DB.prepare(`SELECT ${cfg.cols} FROM ${cfg.table} WHERE id = ?`).bind(id).first();
+  return json({ item: cfg.toPublic(updated) });
 }
 
-async function deleteGift(id, req, env) {
+async function deleteRow(id, req, env, cfg) {
   const body = await req.json().catch(() => ({}));
-  const row = await env.DB.prepare("SELECT * FROM gifts WHERE id = ?").bind(id).first();
-  if (!row) return err("해당 선물을 찾을 수 없습니다.", 404);
-
-  if (!(await verifyPassword(row, body && body.password, env))) {
-    return err("비밀번호가 일치하지 않습니다.", 401);
-  }
-
-  await env.DB.prepare("DELETE FROM gifts WHERE id = ?").bind(id).run();
+  const row = await env.DB.prepare(`SELECT * FROM ${cfg.table} WHERE id = ?`).bind(id).first();
+  if (!row) return err("항목을 찾을 수 없습니다.", 404);
+  if (!(await verifyPassword(row, body && body.password, env))) return err("비밀번호가 일치하지 않습니다.", 401);
+  await env.DB.prepare(`DELETE FROM ${cfg.table} WHERE id = ?`).bind(id).run();
   return json({ ok: true });
 }
 
@@ -243,9 +238,12 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // /api/* 만 처리. 그 외 경로는 정적 자산이 처리하므로 도달하지 않음.
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS });
+    }
+
     if (!path.startsWith("/api/")) {
-      return new Response("Not Found", { status: 404 });
+      return new Response("Not Found", { status: 404, headers: CORS });
     }
 
     try {
@@ -253,15 +251,14 @@ export default {
         return json(await getState(env));
       }
 
-      if (path === "/api/gifts" && request.method === "POST") {
-        return await createGift(request, env);
-      }
-
-      const m = path.match(/^\/api\/gifts\/(\d+)$/);
+      // /api/{gifts|restaurants}  또는  /api/{...}/:id
+      const m = path.match(/^\/api\/(gifts|restaurants)(?:\/(\d+))?$/);
       if (m) {
-        const id = Number(m[1]);
-        if (request.method === "PUT") return await updateGift(id, request, env);
-        if (request.method === "DELETE") return await deleteGift(id, request, env);
+        const cfg = RESOURCES[m[1]];
+        const id = m[2] ? Number(m[2]) : null;
+        if (id === null && request.method === "POST") return await createRow(request, env, cfg);
+        if (id !== null && request.method === "PUT") return await updateRow(id, request, env, cfg);
+        if (id !== null && request.method === "DELETE") return await deleteRow(id, request, env, cfg);
       }
 
       return err("지원하지 않는 요청입니다.", 404);

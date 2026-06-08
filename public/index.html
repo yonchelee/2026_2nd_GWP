@@ -3,135 +3,129 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2026 2분기 GWP 선물 대시보드</title>
-  <link rel="stylesheet" href="/styles.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎁</text></svg>" />
+  <title>선행기구개발그룹 GWP · 6/23</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎉</text></svg>" />
 </head>
 <body>
   <header class="site-header">
     <div class="wrap">
-      <h1>🎁 2026 2분기 GWP 선물 대시보드</h1>
-      <p class="subtitle">2분기(4~6월) GWP 계획 · 선물 후보를 함께 등록하고 예산을 공유해요</p>
+      <p class="eyebrow">선행기구개발그룹 GWP</p>
+      <h1>🎉 선행기구개발그룹 GWP</h1>
+      <p class="subtitle">2026년 <strong>6월 23일</strong> · 함께 준비하는 우리 그룹의 GWP</p>
+      <nav class="topnav">
+        <a href="#progress">행사 진행</a>
+        <a href="#gifts">선물 현황 및 추천</a>
+        <a href="#restaurants">파트별 식당 현황</a>
+      </nav>
     </div>
   </header>
 
   <main class="wrap">
-    <!-- 예산 요약 -->
-    <section class="budget" aria-label="예산 현황">
-      <div class="cards">
-        <div class="card">
-          <span class="card-label">총 예산</span>
-          <strong class="card-value" id="b-total">–</strong>
-          <span class="card-sub" id="b-formula">138명 × 2만원</span>
-        </div>
-        <div class="card">
-          <span class="card-label">사용 금액</span>
-          <strong class="card-value" id="b-spent">–</strong>
-          <span class="card-sub" id="b-count">등록 0건</span>
-        </div>
-        <div class="card" id="card-remaining">
-          <span class="card-label">잔여 예산</span>
-          <strong class="card-value" id="b-remaining">–</strong>
-          <span class="card-sub" id="b-status"> </span>
-        </div>
+    <!-- ============ 1) 행사 진행 (정적 안내 — 아래 내용을 직접 수정하세요) ============ -->
+    <section id="progress" class="panel">
+      <h2>🗓️ 행사 진행</h2>
+      <div class="event-meta">
+        <span><strong>일시</strong> 2026. 6. 23 (화)</span>
+        <span><strong>그룹</strong> 선행기구개발그룹</span>
+        <span><strong>예산</strong> 선물 276만원 (138명 × 2만원)</span>
       </div>
-      <div class="progress" aria-hidden="true">
-        <div class="progress-bar" id="progress-bar"></div>
-      </div>
-      <p class="progress-text" id="progress-text"> </p>
+      <!-- 행사 순서: 아래 목록을 실제 일정에 맞게 수정하세요 -->
+      <ol class="agenda">
+        <li><span class="agenda-time">단계 1</span><span class="agenda-desc">오프닝 &amp; 그룹 인사</span></li>
+        <li><span class="agenda-time">단계 2</span><span class="agenda-desc">그룹 활동 / 팀 빌딩</span></li>
+        <li><span class="agenda-time">단계 3</span><span class="agenda-desc">파트별 만찬 (아래 식당 현황 참고)</span></li>
+        <li><span class="agenda-time">단계 4</span><span class="agenda-desc">선물 추첨 &amp; 마무리</span></li>
+      </ol>
+      <p class="hint">※ 행사 순서/시간은 추후 확정되는 대로 업데이트됩니다.</p>
     </section>
 
-    <!-- 선물 추가 -->
-    <section class="panel">
-      <h2>선물 추가</h2>
+    <!-- ============ 2) 선물 현황 및 추천 ============ -->
+    <section id="gifts" class="panel">
+      <h2>🎁 선물 현황 및 추천</h2>
+
+      <!-- 예산 요약 -->
+      <div class="budget">
+        <div class="cards">
+          <div class="card">
+            <span class="card-label">총 예산</span>
+            <strong class="card-value" id="b-total">–</strong>
+            <span class="card-sub" id="b-formula">138명 × 2만원</span>
+          </div>
+          <div class="card">
+            <span class="card-label">사용 금액</span>
+            <strong class="card-value" id="b-spent">–</strong>
+            <span class="card-sub" id="b-count">등록 0건</span>
+          </div>
+          <div class="card" id="card-remaining">
+            <span class="card-label">잔여 예산</span>
+            <strong class="card-value" id="b-remaining">–</strong>
+            <span class="card-sub" id="b-status"> </span>
+          </div>
+        </div>
+        <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+        <p class="progress-text" id="progress-text"> </p>
+      </div>
+
+      <h3 class="sub-head">선물 추천 등록</h3>
       <p class="hint">등록 시 설정한 <strong>비밀번호</strong>를 알아야 본인 항목을 수정·삭제할 수 있어요.</p>
-      <form id="add-form" class="gift-form" autocomplete="off">
+      <form id="gift-form" class="entry-form" autocomplete="off">
         <div class="grid">
-          <label class="field">
-            <span>제품명 <em>*</em></span>
-            <input type="text" name="name" maxlength="100" required placeholder="예: 텀블러 세트" />
-          </label>
-          <label class="field">
-            <span>가격(원) <em>*</em></span>
-            <input type="number" name="price" min="0" step="1" required placeholder="예: 15000" />
-          </label>
-          <label class="field">
-            <span>수량</span>
-            <input type="number" name="quantity" min="1" step="1" value="1" />
-          </label>
-          <label class="field">
-            <span>등록자</span>
-            <input type="text" name="registrant" maxlength="100" placeholder="이름(선택)" />
-          </label>
-          <label class="field field-wide">
-            <span>구매 링크</span>
-            <input type="url" name="url" maxlength="1000" placeholder="https://...(선택)" />
-          </label>
-          <label class="field field-wide">
-            <span>메모</span>
-            <input type="text" name="note" maxlength="500" placeholder="간단한 설명(선택)" />
-          </label>
-          <label class="field">
-            <span>비밀번호 <em>*</em></span>
-            <input type="password" name="password" maxlength="200" required placeholder="수정·삭제용 비밀번호" />
-          </label>
+          <label class="field"><span>제품명 <em>*</em></span><input type="text" name="name" maxlength="100" required placeholder="예: 텀블러 세트" /></label>
+          <label class="field"><span>가격(원) <em>*</em></span><input type="number" name="price" min="0" step="1" required placeholder="예: 15000" /></label>
+          <label class="field"><span>수량</span><input type="number" name="quantity" min="1" step="1" value="1" /></label>
+          <label class="field"><span>추천자</span><input type="text" name="registrant" maxlength="100" placeholder="이름(선택)" /></label>
+          <label class="field field-wide"><span>구매 링크</span><input type="url" name="url" maxlength="1000" placeholder="https://...(선택)" /></label>
+          <label class="field field-wide"><span>메모</span><input type="text" name="note" maxlength="500" placeholder="추천 이유 등(선택)" /></label>
+          <label class="field"><span>비밀번호 <em>*</em></span><input type="password" name="password" maxlength="200" required placeholder="수정·삭제용" /></label>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">선물 등록</button>
-          <span class="form-msg" id="add-msg"></span>
+          <span class="form-msg" id="gift-msg"></span>
         </div>
       </form>
+
+      <h3 class="sub-head">등록된 선물 <span class="count-badge" id="gift-listcount">0</span></h3>
+      <div id="gift-list" class="item-list"></div>
     </section>
 
-    <!-- 선물 목록 -->
-    <section class="panel">
-      <h2>등록된 선물 <span class="count-badge" id="list-count">0</span></h2>
-      <div id="gift-list" class="gift-list">
-        <p class="empty" id="empty">아직 등록된 선물이 없어요. 첫 번째 후보를 추가해 보세요!</p>
-      </div>
+    <!-- ============ 3) 파트별 식당 현황 ============ -->
+    <section id="restaurants" class="panel">
+      <h2>🍽️ 파트별 식당 현황</h2>
+      <p class="hint">파트별로 만찬 식당을 등록·공유하세요. 등록 시 설정한 <strong>비밀번호</strong>로 수정·삭제할 수 있어요.</p>
+      <form id="rest-form" class="entry-form" autocomplete="off">
+        <div class="grid">
+          <label class="field"><span>파트명 <em>*</em></span><input type="text" name="part" maxlength="100" required placeholder="예: 1파트" /></label>
+          <label class="field"><span>식당명 <em>*</em></span><input type="text" name="restaurant" maxlength="100" required placeholder="예: ○○식당" /></label>
+          <label class="field"><span>메뉴/종류</span><input type="text" name="category" maxlength="100" placeholder="예: 한식 / 고기(선택)" /></label>
+          <label class="field"><span>인원</span><input type="number" name="headcount" min="0" step="1" placeholder="예: 12(선택)" /></label>
+          <label class="field field-wide"><span>위치/예약 링크</span><input type="url" name="url" maxlength="1000" placeholder="https://...(선택)" /></label>
+          <label class="field field-wide"><span>메모</span><input type="text" name="note" maxlength="500" placeholder="예약 시간 등(선택)" /></label>
+          <label class="field"><span>비밀번호 <em>*</em></span><input type="password" name="password" maxlength="200" required placeholder="수정·삭제용" /></label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">식당 등록</button>
+          <span class="form-msg" id="rest-msg"></span>
+        </div>
+      </form>
+
+      <h3 class="sub-head">등록된 식당 <span class="count-badge" id="rest-listcount">0</span></h3>
+      <div id="rest-list" class="item-list"></div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="wrap">2026 2분기 GWP · 가용 예산 276만원 (138명 × 2만원)</div>
+    <div class="wrap">선행기구개발그룹 GWP · 2026. 6. 23 · 선물 예산 276만원 (138명 × 2만원)</div>
   </footer>
 
-  <!-- 수정 모달 -->
+  <!-- 수정 모달 (선물/식당 공용) -->
   <div class="modal-overlay" id="edit-overlay" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
-      <h3 id="edit-title">선물 수정</h3>
-      <form id="edit-form" class="gift-form" autocomplete="off">
+      <h3 id="edit-title">수정</h3>
+      <form id="edit-form" class="entry-form" autocomplete="off">
         <input type="hidden" name="id" />
-        <div class="grid">
-          <label class="field">
-            <span>제품명 <em>*</em></span>
-            <input type="text" name="name" maxlength="100" required />
-          </label>
-          <label class="field">
-            <span>가격(원) <em>*</em></span>
-            <input type="number" name="price" min="0" step="1" required />
-          </label>
-          <label class="field">
-            <span>수량</span>
-            <input type="number" name="quantity" min="1" step="1" />
-          </label>
-          <label class="field">
-            <span>등록자</span>
-            <input type="text" name="registrant" maxlength="100" />
-          </label>
-          <label class="field field-wide">
-            <span>구매 링크</span>
-            <input type="url" name="url" maxlength="1000" placeholder="https://..." />
-          </label>
-          <label class="field field-wide">
-            <span>메모</span>
-            <input type="text" name="note" maxlength="500" />
-          </label>
-          <label class="field">
-            <span>비밀번호 <em>*</em></span>
-            <input type="password" name="password" maxlength="200" required placeholder="등록 시 설정한 비밀번호" />
-          </label>
-        </div>
+        <input type="hidden" name="kind" />
+        <div class="grid" id="edit-fields"><!-- JS가 채움 --></div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">저장</button>
           <button type="button" class="btn btn-ghost" id="edit-cancel">취소</button>
@@ -141,6 +135,6 @@
     </div>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

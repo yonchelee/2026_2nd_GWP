@@ -1,0 +1,42 @@
+name: Deploy dashboard to GitHub Pages
+
+on:
+  push:
+    branches:
+      - claude/q2-gwp-gift-dashboard-KIBFU
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시 배포 1개만 유지
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Pages가 비활성 상태면 자동으로 활성화(GitHub Actions 소스)
+          enablement: true
+
+      - name: Upload static site (public/)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

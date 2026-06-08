@@ -31,8 +31,22 @@ body {
   color: #fff;
   padding: 32px 0 28px;
 }
-.site-header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; }
+.site-header .eyebrow { margin: 0 0 4px; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
+.site-header h1 { margin: 0; font-size: 1.7rem; letter-spacing: -0.02em; }
 .site-header .subtitle { margin: 6px 0 0; opacity: 0.92; font-size: 0.95rem; }
+
+.topnav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.topnav a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.15s;
+}
+.topnav a:hover { background: rgba(255, 255, 255, 0.28); }
 
 main.wrap { padding-top: 24px; padding-bottom: 48px; }
 
@@ -56,7 +70,8 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 #card-remaining.over .card-value { color: var(--warn); }
 #card-remaining.ok .card-value { color: var(--good); }
 
-.progress {
+.budget { margin-bottom: 8px; }
+.progress-track {
   margin-top: 14px;
   height: 12px;
   background: #e9ecf5;
@@ -142,10 +157,33 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 .form-msg.ok { color: var(--good); }
 .form-msg.error { color: var(--warn); }
 
-/* Gift list */
-.gift-list { display: flex; flex-direction: column; gap: 12px; }
+/* Sub-headings within a panel */
+.sub-head { margin: 22px 0 4px; font-size: 1.0rem; }
+.panel h3.sub-head:first-of-type { margin-top: 10px; }
+
+/* 행사 진행 */
+.event-meta {
+  display: flex; flex-wrap: wrap; gap: 8px 18px;
+  margin: 4px 0 16px; font-size: 0.9rem; color: #374151;
+}
+.event-meta strong { color: var(--muted); font-weight: 600; margin-right: 5px; font-size: 0.82rem; }
+.agenda { list-style: none; counter-reset: step; margin: 0; padding: 0; }
+.agenda li {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px dashed var(--line);
+}
+.agenda li:last-child { border-bottom: none; }
+.agenda-time {
+  flex: none; min-width: 56px; text-align: center;
+  font-size: 0.78rem; font-weight: 700; color: var(--brand);
+  background: #eef0ff; border-radius: 8px; padding: 4px 8px;
+}
+.agenda-desc { font-size: 0.96rem; }
+
+/* 항목 목록 (선물 / 식당 공용) */
+.item-list { display: flex; flex-direction: column; gap: 12px; }
 .empty { color: var(--muted); text-align: center; padding: 24px 0; margin: 0; }
-.gift {
+.item {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 14px 16px;
@@ -154,16 +192,21 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
   align-items: flex-start;
   gap: 14px;
 }
-.gift-main { min-width: 0; }
-.gift-name { font-weight: 700; font-size: 1.02rem; }
-.gift-name a { color: var(--brand); text-decoration: none; }
-.gift-name a:hover { text-decoration: underline; }
-.gift-meta { font-size: 0.84rem; color: var(--muted); margin-top: 3px; }
-.gift-note { font-size: 0.86rem; margin-top: 6px; color: #374151; word-break: break-word; }
-.gift-right { text-align: right; white-space: nowrap; }
-.gift-subtotal { font-weight: 700; font-size: 1.05rem; }
-.gift-unit { font-size: 0.78rem; color: var(--muted); }
-.gift-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
+.item-main { min-width: 0; }
+.item-title { font-weight: 700; font-size: 1.02rem; }
+.item-title a { color: var(--brand); text-decoration: none; }
+.item-title a:hover { text-decoration: underline; }
+.part-tag {
+  display: inline-block; font-size: 0.74rem; font-weight: 700;
+  color: #fff; background: #7c3aed; border-radius: 6px; padding: 1px 7px; margin-right: 4px;
+  vertical-align: middle;
+}
+.item-meta { font-size: 0.84rem; color: var(--muted); margin-top: 3px; }
+.item-note { font-size: 0.86rem; margin-top: 6px; color: #374151; word-break: break-word; }
+.item-right { text-align: right; white-space: nowrap; }
+.item-amount { font-weight: 700; font-size: 1.05rem; }
+.item-amount-label { font-size: 0.78rem; color: var(--muted); }
+.item-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
 
 /* Modal */
 .modal-overlay {
@@ -199,7 +242,7 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 @media (max-width: 640px) {
   .cards { grid-template-columns: 1fr; }
   .grid { grid-template-columns: 1fr; }
-  .gift { flex-direction: column; }
-  .gift-right { text-align: left; }
-  .gift-actions { justify-content: flex-start; }
+  .item { flex-direction: column; }
+  .item-right { text-align: left; }
+  .item-actions { justify-content: flex-start; }
 }

@@ -15,6 +15,7 @@
       <p class="subtitle">2026년 <strong>6월 23일</strong> · 함께 준비하는 우리 그룹의 GWP</p>
       <nav class="topnav">
         <a href="#progress">행사 진행</a>
+        <a href="#attendance">파트별 참석 현황</a>
         <a href="#gifts">선물 현황 및 추천</a>
         <a href="#restaurants">파트별 식당 현황</a>
       </nav>
@@ -28,7 +29,10 @@
       <div class="event-meta">
         <span><strong>일시</strong> 2026. 6. 23 (화)</span>
         <span><strong>그룹</strong> 선행기구개발그룹</span>
-        <span><strong>예산</strong> 선물 276만원 (138명 × 2만원)</span>
+        <span><strong>인당 행사비</strong> 100,000원</span>
+        <span><strong>선물 비중</strong> 20% (인당 20,000원)</span>
+        <span><strong>현재 참석</strong> <span id="ev-attendees">–</span></span>
+        <span><strong>총 행사비</strong> <span id="ev-eventtotal">–</span></span>
       </div>
       <!-- 행사 순서: 아래 목록을 실제 일정에 맞게 수정하세요 -->
       <ol class="agenda">
@@ -40,7 +44,16 @@
       <p class="hint">※ 행사 순서/시간은 추후 확정되는 대로 업데이트됩니다.</p>
     </section>
 
-    <!-- ============ 2) 선물 현황 및 추천 ============ -->
+    <!-- ============ 2) 파트별 참석 현황 ============ -->
+    <section id="attendance" class="panel">
+      <h2>👥 파트별 참석 현황</h2>
+      <p class="hint">파트별 <strong>당일 참석 인원</strong>과 <strong>미참자(인원수·성명)</strong>를 입력하세요.
+        참석 인원 합계로 아래 선물 예산이 계산됩니다. 등록 시 설정한 <strong>비밀번호</strong>로 수정·삭제할 수 있어요.</p>
+      <p class="att-summary" id="att-summary"> </p>
+      <div id="att-list" class="att-table"></div>
+    </section>
+
+    <!-- ============ 3) 선물 현황 및 추천 ============ -->
     <section id="gifts" class="panel">
       <h2>🎁 선물 현황 및 추천</h2>
 
@@ -48,9 +61,9 @@
       <div class="budget">
         <div class="cards">
           <div class="card">
-            <span class="card-label">총 예산</span>
+            <span class="card-label">선물 예산</span>
             <strong class="card-value" id="b-total">–</strong>
-            <span class="card-sub" id="b-formula">138명 × 2만원</span>
+            <span class="card-sub" id="b-formula">참석 인원 × 2만원</span>
           </div>
           <div class="card">
             <span class="card-label">사용 금액</span>
@@ -89,7 +102,7 @@
       <div id="gift-list" class="item-list"></div>
     </section>
 
-    <!-- ============ 3) 파트별 식당 현황 ============ -->
+    <!-- ============ 4) 파트별 식당 현황 ============ -->
     <section id="restaurants" class="panel">
       <h2>🍽️ 파트별 식당 현황</h2>
       <p class="hint">파트별로 만찬 식당을 등록·공유하세요. 등록 시 설정한 <strong>비밀번호</strong>로 수정·삭제할 수 있어요.</p>
@@ -125,6 +138,7 @@
       <form id="edit-form" class="entry-form" autocomplete="off">
         <input type="hidden" name="id" />
         <input type="hidden" name="kind" />
+        <input type="hidden" name="part" />
         <div class="grid" id="edit-fields"><!-- JS가 채움 --></div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">저장</button>

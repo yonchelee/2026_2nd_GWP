@@ -4,6 +4,9 @@
 // Worker(workers.dev)에서 열리면 동일 출처(상대경로)로 호출한다.
 const API_BASE = location.hostname.endsWith("workers.dev") ? "" : "https://gwp-2026-q2.yonchelee.workers.dev";
 
+// 참석 현황 고정 파트 (표시 순서)
+const PARTS = ["NE파트", "패키지파트", "선행CMF1파트", "선행CMF2파트", "선행CMF3파트", "Hinge개발.lab", "접합기술 파트"];
+
 const $ = (sel, root = document) => root.querySelector(sel);
 
 function escapeHtml(str) {
@@ -13,6 +16,7 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 const won = (n) => `${Number(n).toLocaleString("ko-KR")}원`;
+const num = (n) => Number(n).toLocaleString("ko-KR");
 
 function showMsg(el, text, type) {
   el.textContent = text;
@@ -56,15 +60,29 @@ const RESOURCES = {
       { name: "note", label: "메모", type: "text", maxlength: 500, wide: true },
     ],
   },
+  attendance: {
+    path: "/api/attendance",
+    // part는 고정값이라 폼 필드에 포함하지 않음(생성 시 hidden으로 전달)
+    fields: [
+      { name: "attendance", label: "당일 참석 인원", type: "number", min: 0 },
+      { name: "absent_count", label: "미참자 인원수", type: "number", min: 0 },
+      { name: "absent_names", label: "미참자 성명", type: "text", maxlength: 500, wide: true, placeholder: "쉼표로 구분 (예: 홍길동, 김철수)" },
+    ],
+  },
 };
 
 let GIFTS = [];
 let RESTS = [];
+let ATTEND = [];
+
+function listOf(kind) {
+  return kind === "gifts" ? GIFTS : kind === "restaurants" ? RESTS : ATTEND;
+}
 
 // ---------- 렌더링: 예산 ----------
 function renderBudget(b) {
   $("#b-total").textContent = won(b.total);
-  $("#b-formula").textContent = `${b.headcount.toLocaleString("ko-KR")}명 × ${won(b.perPerson)}`;
+  $("#b-formula").textContent = `참석 ${num(b.attendees)}명 × ${won(b.perPersonGift)}`;
   $("#b-spent").textContent = won(b.spent);
   $("#b-count").textContent = `등록 ${b.count}건`;
   $("#b-remaining").textContent = won(b.remaining);
@@ -78,8 +96,59 @@ function renderBudget(b) {
   const bar = $("#progress-bar");
   bar.style.width = Math.min(pct, 100).toFixed(1) + "%";
   bar.classList.toggle("over", b.overBudget);
-  $("#progress-text").textContent =
-    `예산의 ${pct.toFixed(1)}% 사용` + (b.overBudget ? ` · ${won(b.spent - b.total)} 초과` : "");
+
+  if (b.attendees === 0) {
+    $("#progress-text").textContent = "참석 인원을 입력하면 선물 예산이 계산됩니다.";
+  } else {
+    $("#progress-text").textContent =
+      `예산의 ${pct.toFixed(1)}% 사용` + (b.overBudget ? ` · ${won(b.spent - b.total)} 초과` : "");
+  }
+
+  // 행사 진행 섹션의 동적 요약
+  const evA = $("#ev-attendees"), evT = $("#ev-eventtotal");
+  if (evA) evA.textContent = `${num(b.attendees)}명`;
+  if (evT) evT.textContent = won(b.eventTotal);
+}
+
+// ---------- 렌더링: 참석 현황 ----------
+function renderAttendance(records) {
+  ATTEND = records;
+  const byPart = {};
+  records.forEach((r) => { byPart[r.part] = r; });
+
+  const html = PARTS.map((part) => {
+    const r = byPart[part];
+    if (!r) {
+      return `<div class="att-row att-empty">
+        <div class="att-part">${escapeHtml(part)}</div>
+        <div class="att-info muted">미입력</div>
+        <div class="att-actions">
+          <button class="btn btn-primary btn-sm" data-kind="attendance" data-action="create" data-part="${escapeHtml(part)}">입력</button>
+        </div>
+      </div>`;
+    }
+    const names = r.absent_names
+      ? `<div class="att-names">미참자: ${escapeHtml(r.absent_names)}</div>` : "";
+    return `<div class="att-row">
+      <div class="att-part">${escapeHtml(part)}</div>
+      <div class="att-info">
+        <span class="att-stat"><strong>${num(r.attendance)}</strong>명 참석</span>
+        <span class="att-stat att-absent">미참 ${num(r.absent_count)}명</span>
+        ${names}
+      </div>
+      <div class="att-actions">
+        <button class="btn btn-ghost btn-sm" data-kind="attendance" data-action="edit" data-id="${r.id}">수정</button>
+        <button class="btn btn-danger btn-sm" data-kind="attendance" data-action="delete" data-id="${r.id}">삭제</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  $("#att-list").innerHTML = html;
+
+  const totalAtt = records.reduce((s, r) => s + r.attendance, 0);
+  const totalAbs = records.reduce((s, r) => s + r.absent_count, 0);
+  $("#att-summary").textContent =
+    `총 참석 ${num(totalAtt)}명 · 미참 ${num(totalAbs)}명 · 입력 ${records.length}/${PARTS.length}개 파트`;
 }
 
 // ---------- 렌더링: 선물 ----------
@@ -116,7 +185,7 @@ function restHtml(r) {
     : escapeHtml(r.restaurant);
   const meta = [];
   if (r.category) meta.push(escapeHtml(r.category));
-  if (r.headcount != null) meta.push(`${r.headcount}명`);
+  if (r.headcount != null) meta.push(`${num(r.headcount)}명`);
   const metaHtml = meta.length ? `<div class="item-meta">${meta.join(" · ")}</div>` : "";
   const note = r.note ? `<div class="item-note">${escapeHtml(r.note)}</div>` : "";
   return `
@@ -138,8 +207,7 @@ function restHtml(r) {
 function renderGifts(gifts) {
   GIFTS = gifts;
   $("#gift-listcount").textContent = gifts.length;
-  const list = $("#gift-list");
-  list.innerHTML = gifts.length
+  $("#gift-list").innerHTML = gifts.length
     ? gifts.map(giftHtml).join("")
     : `<p class="empty">아직 등록된 선물이 없어요. 첫 추천을 남겨보세요!</p>`;
 }
@@ -147,20 +215,20 @@ function renderGifts(gifts) {
 function renderRests(rests) {
   RESTS = rests;
   $("#rest-listcount").textContent = rests.length;
-  const list = $("#rest-list");
-  list.innerHTML = rests.length
+  $("#rest-list").innerHTML = rests.length
     ? rests.map(restHtml).join("")
     : `<p class="empty">아직 등록된 식당이 없어요. 파트별 만찬 장소를 등록해 주세요!</p>`;
 }
 
 async function refresh() {
   const s = await api("/api/state");
+  renderAttendance(s.attendance);
   renderBudget(s.budget);
   renderGifts(s.gifts);
   renderRests(s.restaurants);
 }
 
-// ---------- 등록 폼 ----------
+// ---------- 등록 폼 (선물 / 식당: 항상 보이는 인라인 폼) ----------
 function collect(form, kind) {
   const fd = new FormData(form);
   const payload = { password: fd.get("password") };
@@ -174,6 +242,7 @@ function collect(form, kind) {
 
 function bindCreateForm(formId, msgId, kind) {
   const form = $(formId);
+  if (!form) return;
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = $(msgId);
@@ -199,19 +268,26 @@ function bindCreateForm(formId, msgId, kind) {
 bindCreateForm("#gift-form", "#gift-msg", "gifts");
 bindCreateForm("#rest-form", "#rest-msg", "restaurants");
 
-// ---------- 수정 모달 ----------
+// ---------- 모달 (선물/식당 수정, 참석 현황 입력·수정) ----------
 const overlay = $("#edit-overlay");
 const editForm = $("#edit-form");
+const KIND_LABEL = { gifts: "선물", restaurants: "식당", attendance: "참석 현황" };
 
-function openEdit(kind, id) {
-  const item = (kind === "gifts" ? GIFTS : RESTS).find((x) => x.id === id);
-  if (!item) return;
-  $("#edit-title").textContent = kind === "gifts" ? "선물 수정" : "식당 수정";
-  editForm.id.value = id;
+function openModal(kind, id, presetPart) {
+  const isEdit = id != null;
+  const item = isEdit ? listOf(kind).find((x) => x.id === id) : null;
+  if (isEdit && !item) return;
+
+  editForm.id.value = isEdit ? id : "";
   editForm.kind.value = kind;
+  editForm.part.value = presetPart || (item && item.part) || "";
+
+  const partPrefix = presetPart || (item && item.part) || "";
+  $("#edit-title").textContent =
+    (partPrefix ? partPrefix + " · " : "") + KIND_LABEL[kind] + (isEdit ? " 수정" : " 입력");
 
   const fieldsHtml = RESOURCES[kind].fields.map((f) => {
-    const val = item[f.name] == null ? "" : item[f.name];
+    const val = item && item[f.name] != null ? item[f.name] : "";
     const attrs = [
       `name="${f.name}"`,
       `type="${f.type}"`,
@@ -219,6 +295,7 @@ function openEdit(kind, id) {
       f.maxlength ? `maxlength="${f.maxlength}"` : "",
       f.min != null ? `min="${f.min}"` : "",
       f.type === "number" ? 'step="1"' : "",
+      f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : "",
     ].join(" ");
     return `<label class="field ${f.wide ? "field-wide" : ""}">
         <span>${f.label}${f.required ? ' <em>*</em>' : ""}</span>
@@ -228,34 +305,39 @@ function openEdit(kind, id) {
 
   $("#edit-fields").innerHTML = fieldsHtml +
     `<label class="field"><span>비밀번호 <em>*</em></span>
-       <input name="password" type="password" maxlength="200" required placeholder="등록 시 설정한 비밀번호" /></label>`;
+       <input name="password" type="password" maxlength="200" required placeholder="${isEdit ? "등록 시 설정한 비밀번호" : "수정·삭제용 비밀번호 설정"}" /></label>`;
 
   showMsg($("#edit-msg"), "", "");
   overlay.hidden = false;
-  $("input[name=password]", editForm).focus();
+  const firstInput = $("#edit-fields input");
+  if (firstInput) firstInput.focus();
 }
 
-function closeEdit() { overlay.hidden = true; }
+function closeModal() { overlay.hidden = true; }
 
-$("#edit-cancel").addEventListener("click", closeEdit);
-overlay.addEventListener("click", (e) => { if (e.target === overlay) closeEdit(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !overlay.hidden) closeEdit(); });
+$("#edit-cancel").addEventListener("click", closeModal);
+overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !overlay.hidden) closeModal(); });
 
 editForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = $("#edit-msg");
   const kind = editForm.kind.value;
-  const id = Number(editForm.id.value);
+  const idVal = editForm.id.value;
+  const isEdit = idVal !== "";
   const fd = new FormData(editForm);
+
   const payload = { password: fd.get("password") };
   for (const f of RESOURCES[kind].fields) payload[f.name] = fd.get(f.name);
+  if (kind === "attendance" && !isEdit) payload.part = fd.get("part");
 
   const btn = $("button[type=submit]", editForm);
   btn.disabled = true;
   showMsg(msg, "저장 중...", "");
   try {
-    await api(`${RESOURCES[kind].path}/${id}`, "PUT", payload);
-    closeEdit();
+    if (isEdit) await api(`${RESOURCES[kind].path}/${Number(idVal)}`, "PUT", payload);
+    else await api(RESOURCES[kind].path, "POST", payload);
+    closeModal();
     await refresh();
   } catch (err) {
     showMsg(msg, err.message, "error");
@@ -266,9 +348,8 @@ editForm.addEventListener("submit", async (e) => {
 
 // ---------- 삭제 ----------
 async function removeItem(kind, id) {
-  const arr = kind === "gifts" ? GIFTS : RESTS;
-  const item = arr.find((x) => x.id === id);
-  const label = item ? `'${item.name || item.restaurant}'` : "이 항목";
+  const item = listOf(kind).find((x) => x.id === id);
+  const label = item ? `'${item.name || item.restaurant || item.part}'` : "이 항목";
   const password = window.prompt(`${label}을(를) 삭제하려면 비밀번호를 입력하세요.`);
   if (password === null) return;
   try {
@@ -279,12 +360,13 @@ async function removeItem(kind, id) {
   }
 }
 
-// 목록 버튼 이벤트 위임
+// 버튼 이벤트 위임
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action]");
   if (!btn) return;
-  const { kind, action, id } = btn.dataset;
-  if (action === "edit") openEdit(kind, Number(id));
+  const { kind, action, id, part } = btn.dataset;
+  if (action === "edit") openModal(kind, Number(id));
+  else if (action === "create") openModal(kind, null, part);
   else if (action === "delete") removeItem(kind, Number(id));
 });
 

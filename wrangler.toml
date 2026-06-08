@@ -4,11 +4,12 @@ compatibility_date = "2025-01-01"
 
 # 정적 UI는 GitHub Pages(github.io)에서 서빙하고, 이 Worker는 /api/* (D1 데이터)만 담당한다.
 
-# 예산 설정 (총 276만원 = 138명 × 2만원)
+# 예산 설정: 행사비 인당 10만원, 그 중 20%(2만원)가 선물비.
+# 선물 예산 = 파트별 당일 참석 인원 합계 × PER_PERSON_GIFT (동적)
 [vars]
-TOTAL_BUDGET = "2760000"
-HEADCOUNT = "138"
-PER_PERSON = "20000"
+PER_PERSON_EVENT = "100000"
+PER_PERSON_GIFT = "20000"
+PLANNED_HEADCOUNT = "138"
 
 # D1 데이터베이스 바인딩 (database_id는 프로비저닝 후 채움)
 [[d1_databases]]

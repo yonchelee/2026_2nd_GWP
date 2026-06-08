@@ -6,6 +6,17 @@ const MAX_NAME = 100;
 const MAX_TEXT = 500;
 const MAX_URL = 1000;
 
+// 참석 현황 고정 파트 (이 목록 외 파트는 등록 불가)
+const FIXED_PARTS = [
+  "NE파트",
+  "패키지파트",
+  "선행CMF1파트",
+  "선행CMF2파트",
+  "선행CMF3파트",
+  "Hinge개발.lab",
+  "접합기술 파트",
+];
+
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -132,6 +143,32 @@ function publicRestaurant(r) {
   };
 }
 
+// ---------------- 참석 현황(attendance) ----------------
+function validateAttendance(body, partial) {
+  const out = {};
+  const set = (key, res) => { if (res.error) return res.error; out[key] = res.value; return null; };
+  let e;
+  if (!partial || body.part !== undefined) {
+    const p = typeof body.part === "string" ? body.part.trim() : "";
+    if (!FIXED_PARTS.includes(p)) return { error: "유효한 파트를 선택해 주세요." };
+    out.part = p;
+  }
+  if (!partial || body.attendance !== undefined)
+    if ((e = set("attendance", checkInt(body.attendance, { min: 0, max: 100000, label: "당일 참석 인원", allowEmpty: true, empty: 0 })))) return { error: e };
+  if (!partial || body.absent_count !== undefined)
+    if ((e = set("absent_count", checkInt(body.absent_count, { min: 0, max: 100000, label: "미참자 인원수", allowEmpty: true, empty: 0 })))) return { error: e };
+  if (!partial || body.absent_names !== undefined)
+    if ((e = set("absent_names", checkText(body.absent_names, { required: false, max: MAX_TEXT, label: "미참자 성명" })))) return { error: e };
+  return { value: out };
+}
+
+function publicAttendance(r) {
+  return {
+    id: r.id, part: r.part, attendance: r.attendance,
+    absent_count: r.absent_count, absent_names: r.absent_names, created_at: r.created_at,
+  };
+}
+
 // 리소스별 설정
 const RESOURCES = {
   gifts: {
@@ -152,6 +189,17 @@ const RESOURCES = {
     toPublic: publicRestaurant,
     order: "part ASC, created_at ASC, id ASC",
   },
+  attendance: {
+    table: "attendance",
+    cols: "id, part, attendance, absent_count, absent_names, created_at",
+    insertCols: ["part", "attendance", "absent_count", "absent_names"],
+    updatable: ["attendance", "absent_count", "absent_names"], // 파트명은 변경 불가
+    validate: validateAttendance,
+    toPublic: publicAttendance,
+    order: "created_at ASC, id ASC",
+    unique: "part",        // 파트당 1행
+    uniqueLabel: "파트",
+  },
 };
 
 async function listRows(env, cfg) {
@@ -162,18 +210,32 @@ async function listRows(env, cfg) {
 }
 
 async function getState(env) {
-  const [gifts, restaurants] = await Promise.all([
+  const [gifts, restaurants, attendance] = await Promise.all([
     listRows(env, RESOURCES.gifts),
     listRows(env, RESOURCES.restaurants),
+    listRows(env, RESOURCES.attendance),
   ]);
-  const total = Number(env.TOTAL_BUDGET) || 0;
-  const headcount = Number(env.HEADCOUNT) || 0;
-  const perPerson = Number(env.PER_PERSON) || 0;
+
+  const perPersonEvent = Number(env.PER_PERSON_EVENT) || 100000;
+  const perPersonGift = Number(env.PER_PERSON_GIFT) || 20000;
+  const plannedHeadcount = Number(env.PLANNED_HEADCOUNT) || 0;
+
+  // 선물 예산 = 파트별 당일 참석 인원 합계 × 인당 선물비 (동적)
+  const attendees = attendance.reduce((s, a) => s + a.attendance, 0);
+  const absentTotal = attendance.reduce((s, a) => s + a.absent_count, 0);
+  const total = attendees * perPersonGift;
+  const eventTotal = attendees * perPersonEvent;
   const spent = gifts.reduce((s, g) => s + g.subtotal, 0);
+
   return {
-    budget: { total, headcount, perPerson, spent, remaining: total - spent, count: gifts.length, overBudget: spent > total },
+    budget: {
+      total, spent, remaining: total - spent, count: gifts.length, overBudget: spent > total,
+      attendees, absentTotal, plannedHeadcount,
+      perPersonEvent, perPersonGift, eventTotal,
+    },
     gifts,
     restaurants,
+    attendance,
   };
 }
 
@@ -186,6 +248,13 @@ async function createRow(req, env, cfg) {
 
   const v = cfg.validate(body, false);
   if (v.error) return err(v.error);
+
+  // 유니크 제약(예: 파트당 1행) 사전 확인
+  if (cfg.unique) {
+    const dup = await env.DB.prepare(`SELECT id FROM ${cfg.table} WHERE ${cfg.unique} = ?`)
+      .bind(v.value[cfg.unique]).first();
+    if (dup) return err(`이미 등록된 ${cfg.uniqueLabel || cfg.unique}입니다. 수정해 주세요.`, 409);
+  }
 
   const salt = newSalt();
   const pw_hash = await hashPassword(salt, password);
@@ -253,7 +322,7 @@ export default {
       }
 
       // /api/{gifts|restaurants}  또는  /api/{...}/:id
-      const m = path.match(/^\/api\/(gifts|restaurants)(?:\/(\d+))?$/);
+      const m = path.match(/^\/api\/(gifts|restaurants|attendance)(?:\/(\d+))?$/);
       if (m) {
         const cfg = RESOURCES[m[1]];
         const id = m[2] ? Number(m[2]) : null;

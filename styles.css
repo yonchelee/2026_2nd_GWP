@@ -180,6 +180,30 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 }
 .agenda-desc { font-size: 0.96rem; }
 
+/* 파트별 참석 현황 */
+.att-summary { font-size: 0.86rem; color: var(--muted); margin: 0 0 14px; }
+.att-table { display: flex; flex-direction: column; gap: 10px; }
+.att-row {
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+}
+.att-part { flex: none; width: 130px; font-weight: 700; }
+.att-info {
+  flex: 1; min-width: 0; display: flex; flex-wrap: wrap;
+  gap: 4px 14px; align-items: center; font-size: 0.92rem;
+}
+.att-stat strong { font-size: 1.1rem; color: var(--brand); }
+.att-absent { color: var(--muted); }
+.att-names { flex-basis: 100%; font-size: 0.84rem; color: #374151; word-break: break-word; }
+.att-actions { flex: none; display: flex; gap: 6px; }
+.att-empty { background: #fafbff; }
+.muted { color: var(--muted); }
+@media (max-width: 640px) {
+  .att-row { flex-wrap: wrap; }
+  .att-part { width: auto; }
+  .att-actions { width: 100%; }
+}
+
 /* 항목 목록 (선물 / 식당 공용) */
 .item-list { display: flex; flex-direction: column; gap: 12px; }
 .empty { color: var(--muted); text-align: center; padding: 24px 0; margin: 0; }

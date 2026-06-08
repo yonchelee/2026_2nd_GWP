@@ -2,10 +2,7 @@ name = "gwp-2026-q2"
 main = "src/worker.js"
 compatibility_date = "2025-01-01"
 
-# 정적 자산(public/)을 먼저 서빙하고, 매칭되는 자산이 없는 경로(/api/*)는 Worker가 처리
-[assets]
-directory = "public"
-binding = "ASSETS"
+# 정적 UI는 GitHub Pages(github.io)에서 서빙하고, 이 Worker는 /api/* (D1 데이터)만 담당한다.
 
 # 예산 설정 (총 276만원 = 138명 × 2만원)
 [vars]

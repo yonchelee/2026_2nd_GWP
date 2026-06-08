@@ -243,7 +243,8 @@ export default {
     }
 
     if (!path.startsWith("/api/")) {
-      return new Response("Not Found", { status: 404, headers: CORS });
+      // UI는 GitHub Pages에서 서빙한다. 루트 접속 시 대시보드로 안내.
+      return Response.redirect("https://yonchelee.github.io/2026_2nd_GWP/", 302);
     }
 
     try {

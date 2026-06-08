@@ -116,11 +116,12 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 .field span { font-size: 0.82rem; color: var(--muted); }
 .field em { color: var(--warn); font-style: normal; }
 .field input {
-  padding: 10px 12px;
+  padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  font-size: 0.95rem;
+  font-size: 16px; /* iOS Safari 입력 시 자동 확대(zoom) 방지: 16px 이상 필요 */
   background: #fcfcfe;
+  width: 100%;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .field input:focus {
@@ -138,10 +139,12 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 .btn {
   border: none;
   border-radius: 9px;
-  padding: 10px 18px;
-  font-size: 0.92rem;
+  padding: 11px 18px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
+  min-height: 44px; /* 모바일 터치 영역 확보 */
+  touch-action: manipulation; /* 더블탭 확대 지연 제거 */
   transition: background 0.15s, transform 0.05s;
 }
 .btn:active { transform: translateY(1px); }
@@ -149,7 +152,7 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 .btn-primary:hover { background: var(--brand-dark); }
 .btn-ghost { background: #eef0f6; color: var(--ink); }
 .btn-ghost:hover { background: #e2e5ef; }
-.btn-sm { padding: 6px 12px; font-size: 0.82rem; }
+.btn-sm { padding: 8px 14px; font-size: 0.85rem; min-height: 38px; }
 .btn-danger { background: #fee2e2; color: var(--warn); }
 .btn-danger:hover { background: #fecaca; }
 
@@ -265,9 +268,23 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 }
 
 @media (max-width: 640px) {
+  .wrap { padding: 0 14px; }
   .cards { grid-template-columns: 1fr; }
   .grid { grid-template-columns: 1fr; }
   .item { flex-direction: column; }
   .item-right { text-align: left; }
   .item-actions { justify-content: flex-start; }
+  /* 폼 제출 영역: 버튼을 넓게, 안내문은 줄바꿈 */
+  .form-actions { flex-wrap: wrap; }
+  .form-actions .btn-primary { flex: 1 1 100%; }
+  .form-msg { flex-basis: 100%; }
+  /* 모달을 화면 하단 시트처럼 넓게 */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: none;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .modal .form-actions .btn { flex: 1 1 0; }
 }

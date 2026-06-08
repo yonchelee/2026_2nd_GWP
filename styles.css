@@ -209,6 +209,7 @@ main.wrap { padding-top: 24px; padding-bottom: 48px; }
 .item-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
 
 /* Modal */
+.modal-overlay[hidden] { display: none; }
 .modal-overlay {
   position: fixed;
   inset: 0;

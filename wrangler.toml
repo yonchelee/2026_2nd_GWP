@@ -1,0 +1,20 @@
+name = "gwp-2026-q2"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# 정적 자산(public/)을 먼저 서빙하고, 매칭되는 자산이 없는 경로(/api/*)는 Worker가 처리
+[assets]
+directory = "public"
+binding = "ASSETS"
+
+# 예산 설정 (총 276만원 = 138명 × 2만원)
+[vars]
+TOTAL_BUDGET = "2760000"
+HEADCOUNT = "138"
+PER_PERSON = "20000"
+
+# D1 데이터베이스 바인딩 (database_id는 프로비저닝 후 채움)
+[[d1_databases]]
+binding = "DB"
+database_name = "gwp-2026-q2"
+database_id = "efc9b4ff-b379-4dd8-bf68-e5cd85270258"
